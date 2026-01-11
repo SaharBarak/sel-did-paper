@@ -200,6 +200,7 @@ The primary assets we wish to protect are:
   \item \textbf{Continuity of a SEL-DID.} A SEL-DID should capture that the same human identity persists over time, even across device changes or partial credential loss.
   \item \textbf{Control of the DID key.} Only the legitimate user should be able to authenticate as the DID to relying parties.
   \item \textbf{Privacy of behavioral data.} Relying parties should learn only the properties of the user's social entropy that are explicitly disclosed (e.g., via zero-knowledge proofs), not raw behavioral traces.
+  \item \textbf{Contextual integrity of SEV proofs.} Proofs presented to one relying party must not be usable by, or correlatable with proofs presented to, other relying parties. This prevents aggregation of SEV information across services.
 \end{itemize}
 
 We express the high-level security goals as:
@@ -209,7 +210,8 @@ We express the high-level security goals as:
   \item[G2: Key-compromise damage limitation.] If $A_{\text{atk}}$ temporarily compromises some subset of the user's Web2 accounts, it should be difficult to permanently steal or fully reproduce the user's SEL-DID, especially once the user regains control and revokes compromised credentials.
   \item[G3: Platform-agnostic continuity.] No single platform should be a single point of failure for a SEL-DID. The identity should remain meaningful and verifiable even if individual platforms revoke access, change APIs, or disappear.
   \item[G4: Privacy-preserving verification.] Relying parties should be able to verify statements such as ``this DID is associated with a high-entropy, multi-year behavioral history'' without learning the specific accounts, contacts, or content underlying that history.
-    \item[G5: Passwordless authentication with recovery.] A user should be able to authenticate without passwords, using only control of the DID and selected SEL credentials, and regain access in the event of key loss via a protocol that leverages SEL-derived recovery factors without introducing centralized custodians.
+  \item[G5: Contextual binding (anti-aggregation).] SEV proofs must be cryptographically bound to the requesting relying party such that: (i) a proof generated for $\textsf{RP}_A$ cannot be verified by $\textsf{RP}_B$; (ii) colluding relying parties cannot combine proofs to reconstruct a richer profile than any single RP could obtain; and (iii) global ``social credit'' scoring via cross-service SEV aggregation is technically infeasible.
+    \item[G6: Passwordless authentication with recovery.] A user should be able to authenticate without passwords, using only control of the DID and selected SEL credentials, and regain access in the event of key loss via a protocol that leverages SEL-derived recovery factors without introducing centralized custodians.
 \end{description}
 
 We explicitly reject constructions that derive a user's private key directly from social or behavioral data, as such data is often low-entropy, partially public, and mutable; SEL-DIDs assume a conventional high-entropy keypair as the cryptographic root of identity.
@@ -530,6 +532,64 @@ The SEV $\mathcal{E}$ is maintained locally. Optionally, the holder may create a
 \]
 where $\sigma_{\mathsf{did}}$ is the holder's own signature. This can be useful for proving stability of $\mathcal{E}$ over time without recomputing from raw credentials.
 
+\subsection{Contextual Binding: Preventing Cross-Service Aggregation}
+\label{sec:contextual_binding}
+
+A critical privacy requirement for SEL-DIDs is that SEV proofs cannot be aggregated across different relying parties to construct a global ``social credit score.'' Without explicit countermeasures, colluding RPs could pool the proofs they receive, correlate users across services, and build comprehensive behavioral profiles that no individual RP was authorized to see. This ``Black Mirror'' scenario represents one of the most serious potential abuses of behavioral identity systems.
+
+To prevent such aggregation, SEL-DIDs require \emph{contextual binding}: each SEV proof must be cryptographically tied to the specific relying party requesting it, such that the proof is meaningless (and unverifiable) outside that context.
+
+\subsubsection{RP-Specific Proof Derivation}
+
+Let $\mathsf{rp\_id}$ denote a unique, stable identifier for the relying party (e.g., a domain name, DID, or public key hash). When generating a SEV proof for RP $r$, the holder's agent computes an RP-specific salt:
+\[
+  \mathsf{salt}_r = H(\mathsf{did} \,\|\, \mathsf{rp\_id}_r \,\|\, \mathsf{epoch}),
+\]
+where $H$ is a cryptographic hash function and $\mathsf{epoch}$ is an optional time-bucketing parameter (e.g., current month) to limit temporal correlation.
+
+The zero-knowledge proof $\pi_r$ is then constructed as:
+\[
+  \pi_r = \textsf{ZKProve}\big( \mathsf{salt}_r, \mathcal{E}, \mathcal{C}, \Pi_r \big),
+\]
+where the proof statement binds to both the RP-specific salt and the RP's policy $\Pi_r$. Critically, the proof includes a commitment to $\mathsf{salt}_r$ that can only be opened with knowledge of $\mathsf{rp\_id}_r$.
+
+\subsubsection{Verification Binding}
+
+To verify the proof, the RP must provide its own $\mathsf{rp\_id}_r$ as part of the verification:
+\[
+  \textsf{ZKVerify}\big( \pi_r, \mathsf{rp\_id}_r, \Pi_r \big) \stackrel{?}{=} 1.
+\]
+
+If a different RP $r'$ attempts to verify $\pi_r$ using $\mathsf{rp\_id}_{r'}$, the verification fails. This ensures that:
+\begin{itemize}
+  \item proofs are non-transferable between relying parties,
+  \item the same user presenting proofs to $n$ different RPs produces $n$ unlinkable proof instances, and
+  \item even if RPs collude and share all received proofs, they cannot verify each other's proofs or determine that two proofs originated from the same user.
+\end{itemize}
+
+\subsubsection{Unlinkability via Blinded Identifiers}
+
+To further strengthen unlinkability, the proof may include a \emph{blinded pseudonym} derived from the RP salt:
+\[
+  \mathsf{nym}_r = H'(\mathsf{did} \,\|\, \mathsf{salt}_r),
+\]
+where $H'$ is a separate hash function (or the same function in a different domain). The RP receives $\mathsf{nym}_r$ as part of the authentication, which it can use for session management and rate limiting, but which is unlinkable to $\mathsf{nym}_{r'}$ presented to any other RP.
+
+This construction ensures that the user's $\mathsf{did}$ itself need not appear in the proof at all---the RP only sees a context-specific pseudonym---further reducing correlation attack surface.
+
+\subsubsection{Anti-Aggregation Properties}
+
+The contextual binding mechanism provides the following guarantees against cross-service aggregation:
+
+\begin{enumerate}
+  \item \textbf{Proof isolation.} A proof $\pi_r$ generated for $\textsf{RP}_r$ is cryptographically meaningless to $\textsf{RP}_{r'}$; verification will fail.
+  \item \textbf{Pseudonym unlinkability.} The pseudonyms $\mathsf{nym}_r$ and $\mathsf{nym}_{r'}$ are computationally indistinguishable from random, even to an adversary who knows both $\mathsf{rp\_id}_r$ and $\mathsf{rp\_id}_{r'}$, unless they also know the user's $\mathsf{did}$ and private key.
+  \item \textbf{No global scoring.} Because each RP sees only its own contextually-bound view of the SEV (via predicate satisfaction, not raw values), and because proofs cannot be combined or correlated, no entity---including a coalition of all RPs---can reconstruct a user's full SEV or compute a ``global social score.''
+  \item \textbf{Temporal compartmentalization.} The optional $\mathsf{epoch}$ parameter ensures that even within a single RP, proofs from different time periods are unlinkable unless the RP explicitly tracks session continuity.
+\end{enumerate}
+
+These properties directly address security goal G5 (Contextual binding) and provide a technical barrier against the ``Black Mirror'' scenario of pervasive behavioral scoring.
+
 \subsection{Passwordless Login with SEL-DIDs}
 
 We now describe a passwordless login protocol in which a relying party (RP) authenticates a user based on:
@@ -567,24 +627,25 @@ The authentication protocol proceeds as follows:
   \begin{enumerate}
     \item retrieves the current set of valid credentials $\mathcal{C}$ and computes the current SEV $\mathcal{E}(t)$ and continuity score $C(t)$;
     \item checks locally whether $\Pi(\mathcal{E}(t), \mathcal{C})$ holds; if not, it can either abort or inform the user that the RP's policy cannot be met;
-    \item constructs a ZK proof $\pi$ attesting that there exists $(\mathcal{E}, \mathcal{C})$ consistent with the committed SEV and credentials such that $\Pi(\mathcal{E}, \mathcal{C}) = 1$.
+    \item computes the RP-specific salt $\mathsf{salt}_r = H(\mathsf{did} \,\|\, \mathsf{rp\_id}_r \,\|\, \mathsf{epoch})$ and blinded pseudonym $\mathsf{nym}_r$ as described in Section~\ref{sec:contextual_binding};
+    \item constructs a contextually-bound ZK proof $\pi_r = \textsf{ZKProve}(\mathsf{salt}_r, \mathcal{E}, \mathcal{C}, \Pi_r)$ attesting that there exists $(\mathcal{E}, \mathcal{C})$ consistent with the committed SEV and credentials such that $\Pi(\mathcal{E}, \mathcal{C}) = 1$, bound to this specific RP.
   \end{enumerate}
   \item \textbf{DID Auth.} In parallel or sequentially, the agent computes a signature $\sigma = \textsf{Sign}_{\mathsf{sk}}(n \,\|\, \textsf{ctx})$, where $\textsf{ctx}$ binds the signature to this RP and session (e.g., includes the RP's domain and a timestamp).
   \item \textbf{Submission.} The holder sends to the RP:
   \[
-    (\mathsf{did}, \sigma, \pi, \textsf{aux}),
+    (\mathsf{nym}_r, \sigma, \pi_r, \textsf{aux}),
   \]
-  where $\textsf{aux}$ may include non-sensitive metadata such as the chosen SEL policy identifier and any public parameters needed to verify $\pi$.
+  where $\mathsf{nym}_r$ is the RP-specific blinded pseudonym (optionally, $\mathsf{did}$ may be included if the RP requires it for other purposes), and $\textsf{aux}$ may include non-sensitive metadata such as the chosen SEL policy identifier and any public parameters needed to verify $\pi_r$.
   \item \textbf{Verification.} The RP:
   \begin{enumerate}
-    \item resolves $\mathsf{did}$ to obtain the associated DID document $\mathsf{DD}$ and public key $\mathsf{pk}$;
+    \item if $\mathsf{did}$ is provided, resolves it to obtain the associated DID document $\mathsf{DD}$ and public key $\mathsf{pk}$; otherwise, uses the blinded pseudonym $\mathsf{nym}_r$ as the session identifier;
     \item verifies the signature $\sigma$ against $\mathsf{pk}$ and challenge $n$;
-    \item verifies the ZK proof $\pi$ against the policy $\Pi$ and the RP's verification parameters.
+    \item verifies the contextually-bound ZK proof $\pi_r$ using its own $\mathsf{rp\_id}_r$: $\textsf{ZKVerify}(\pi_r, \mathsf{rp\_id}_r, \Pi_r) \stackrel{?}{=} 1$.
   \end{enumerate}
-  If all checks pass, the RP accepts the authentication and establishes a session associated with $\mathsf{did}$ and the policy level used.
+  If all checks pass, the RP accepts the authentication and establishes a session associated with $\mathsf{nym}_r$ (or $\mathsf{did}$) and the policy level used. Importantly, the RP cannot share or replay $\pi_r$ to other services, as verification requires knowledge of the correct $\mathsf{rp\_id}$.
 \end{enumerate}
 
-This protocol provides passwordless authentication with two orthogonal assurances: key control and SEL policy satisfaction. The RP does not learn the specific platforms involved, the user's contacts, or detailed behavior, only that the SEV meets the specified criteria.
+This protocol provides passwordless authentication with two orthogonal assurances: key control and SEL policy satisfaction. The RP does not learn the specific platforms involved, the user's contacts, or detailed behavior, only that the SEV meets the specified criteria. Moreover, the contextual binding mechanism (Section~\ref{sec:contextual_binding}) ensures that proofs are non-transferable and that colluding RPs cannot aggregate SEV information across services to construct global behavioral profiles.
 
 \subsection{Illustrative Login Flow}
 
@@ -722,12 +783,15 @@ SEL-DIDs therefore assume a degraded, mixed environment by design. Where possibl
 If adopted widely, SEL-DIDs could be misused for purposes very different from Sybil resistance and privacy-preserving authentication. For example:
 
 \begin{itemize}
-  \item \textbf{Coercive identity scoring.} States or corporations could use SEV-like constructions to build opaque credit- or loyalty-scoring systems that condition access to services on behavioral conformity.
+  \item \textbf{Coercive identity scoring.} States or corporations could attempt to use SEV-like constructions to build opaque credit- or loyalty-scoring systems that condition access to services on behavioral conformity.
+  \item \textbf{Cross-service aggregation (``Black Mirror'' scenario).} Colluding relying parties could attempt to pool SEV proofs to construct comprehensive behavioral profiles and global ``social credit'' scores.
   \item \textbf{Surveillance.} Adversarial actors could pressure issuers or vault providers to reveal raw SEV inputs or to add hidden features that encode sensitive attributes.
   \item \textbf{Chilling effects.} If users believe that all their behavioral traces feed into a global identity score, they may self-censor or avoid legitimate but sensitive activities.
 \end{itemize}
 
-While no technical design alone can prevent such misuse, SEL-DIDs can be structured to make abusive deployments harder and more visible. For example, open standards bodies can:
+While no technical design alone can prevent all misuse, SEL-DIDs incorporate explicit countermeasures against the most serious abuses. In particular, the \emph{contextual binding} mechanism described in Section~\ref{sec:contextual_binding} provides a cryptographic barrier against cross-service aggregation: proofs are salted with the requesting RP's identifier and cannot be verified by other parties, pseudonyms are unlinkable across services, and even a coalition of all RPs cannot reconstruct a user's full SEV or correlate their activity. This makes global behavioral scoring technically infeasible without user cooperation.
+
+Beyond cryptographic protections, governance and transparency measures can further reduce abuse risks. For example, open standards bodies can:
 
 \begin{itemize}
   \item restrict which kinds of features are considered acceptable in SEV schemas,
@@ -849,7 +913,7 @@ Decentralized Identifiers promise self-sovereign identity by allowing users to g
 
 This paper introduced \emph{Social Entropy Layered DIDs} (SEL-DIDs), a model in which a conventional DID and keypair form the cryptographic root of identity, and cross-platform behavioral and social evidence is attached as an optional, user-controlled layer. We formalized the notion of a Social Entropy Vector (SEV) $\mathcal{E}$ derived from per-platform feature vectors, and described how SEV-related credentials can be issued as Verifiable Credentials and stored in personal data vaults such as Decentralized Web Nodes. We presented a threat model and design goals for SEL-DIDs focused on Sybil-resistance amplification, key-compromise damage limitation, platform-agnostic continuity, privacy-preserving verification, and passwordless authentication with recovery.
 
-On top of this model, we outlined a cryptographic construction and a passwordless login protocol in which relying parties verify both control of the DID and satisfaction of a SEL policy $\Pi$ over the SEV, using zero-knowledge proofs or selective disclosure. We sketched how the same machinery can support safer recovery flows by leveraging historical SEV continuity and multi-platform control as recovery factors, without turning any single platform into a mandatory oracle. Finally, we analyzed privacy, ethical, and societal implications of using behavioral data as identity-strengthening evidence, emphasizing data minimization, user-controlled storage, inclusivity, and the need to avoid new forms of platform lock-in or coercive identity scoring.
+On top of this model, we outlined a cryptographic construction and a passwordless login protocol in which relying parties verify both control of the DID and satisfaction of a SEL policy $\Pi$ over the SEV, using zero-knowledge proofs or selective disclosure. Critically, we introduced a \emph{contextual binding} mechanism that cryptographically prevents cross-service aggregation of SEV proofs: by salting proofs with the relying party's unique identifier and using blinded pseudonyms, SEL-DIDs ensure that even colluding services cannot pool proofs to construct global behavioral profiles---directly addressing the ``Black Mirror'' scenario of pervasive social scoring. We sketched how the same machinery can support safer recovery flows by leveraging historical SEV continuity and multi-platform control as recovery factors, without turning any single platform into a mandatory oracle. Finally, we analyzed privacy, ethical, and societal implications of using behavioral data as identity-strengthening evidence, emphasizing data minimization, user-controlled storage, inclusivity, and the need to avoid new forms of platform lock-in or coercive identity scoring.
 
 This work is intentionally architectural rather than empirical. We do not claim to have solved the full problem of proof-of-personhood or to have calibrated a definitive cost-of-forgery model for Social Entropy Vectors. Important directions for future work include: (i) designing concrete SEV feature spaces and reduction functions $r_p$ that balance utility against privacy; (ii) empirically evaluating SEL-based policies on real or synthetic datasets to estimate adversary costs and false-positive rates; (iii) integrating existing proof-of-personhood systems (e.g., BrightID, Gitcoin Passport) as inputs into SEV constructions; (iv) specifying interoperable schemas and policy languages for SEL credentials within existing DID and VC standards; and (v) prototyping SEL-DIDs in real-world applications such as governance platforms, Sybil-resistant funding mechanisms, and civic networks.
 
