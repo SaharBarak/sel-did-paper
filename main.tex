@@ -896,6 +896,95 @@ This design achieves several SEL-DID goals:
 
 This case study demonstrates that SEL-DIDs can be deployed incrementally, using existing infrastructure (social logins, payment processors, GPS), without waiting for new cryptographic ceremonies or biometric hardware. The approach is particularly suited to applications where geographic locality and moderate assurance are more relevant than global uniqueness guarantees.
 
+\subsection{Assurance Tiers for Relying Parties}
+\label{sec:assurance_tiers}
+
+To simplify adoption, we propose a standardized set of \emph{Assurance Tiers} that map SEV thresholds to graduated trust levels. Rather than requiring each Relying Party (RP) to define complex, bespoke policies from scratch, these tiers provide ready-made policy templates that can be referenced by name or further customized.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{p{1.8cm} p{2.2cm} p{4.5cm} p{5.5cm}}
+    \hline
+    Tier & Trust Level & SEV Requirements & Typical Use Cases \\
+    \hline
+    Tier 1 &
+    Low Trust &
+    \begin{tabular}[t]{@{}l@{}}
+      $\bullet$ $C(t) \geq 0.2$ \\
+      $\bullet$ $\geq 1$ platform credential \\
+      $\bullet$ Any account age
+    \end{tabular} &
+    Anonymous comments, public forums, newsletter signups, read-only access to resources \\
+    \hline
+    Tier 2 &
+    Medium Trust &
+    \begin{tabular}[t]{@{}l@{}}
+      $\bullet$ $C(t) \geq 0.4$ \\
+      $\bullet$ $\geq 2$ independent platforms \\
+      $\bullet$ $\geq 1$ account aged $>6$ months \\
+      $\bullet$ Basic behavioral consistency
+    \end{tabular} &
+    Social platform participation, content creation, basic e-commerce, community membership \\
+    \hline
+    Tier 3 &
+    High Trust &
+    \begin{tabular}[t]{@{}l@{}}
+      $\bullet$ $C(t) \geq 0.65$ \\
+      $\bullet$ $\geq 3$ independent platforms \\
+      $\bullet$ $\geq 2$ accounts aged $>1$ year \\
+      $\bullet$ Demonstrated social graph \\
+      $\bullet$ Consistent behavioral patterns
+    \end{tabular} &
+    DAO governance voting, quadratic funding, financial services onboarding, moderation roles \\
+    \hline
+    Tier 4 &
+    Human-Only / Critical &
+    \begin{tabular}[t]{@{}l@{}}
+      $\bullet$ $C(t) \geq 0.85$ \\
+      $\bullet$ $\geq 4$ independent platforms \\
+      $\bullet$ $\geq 2$ accounts aged $>3$ years \\
+      $\bullet$ Dense, reciprocal social graph \\
+      $\bullet$ Long-term behavioral stability \\
+      $\bullet$ Cross-platform consistency check
+    \end{tabular} &
+    High-stakes governance (constitutional votes), large financial transactions, civic elections, critical infrastructure access \\
+    \hline
+  \end{tabular}
+  \caption{Standardized SEL-DID Assurance Tiers mapping SEV thresholds to trust levels. RPs can adopt tiers by reference or customize thresholds for domain-specific needs.}
+  \label{tab:assurance_tiers}
+\end{table}
+
+Each tier is defined by a combination of:
+\begin{itemize}
+  \item \textbf{Continuity score threshold} $C(t)$: the minimum value of the identity continuity function at verification time.
+  \item \textbf{Platform diversity}: the number of independent platforms contributing valid SEV credentials.
+  \item \textbf{Account longevity}: minimum age requirements for underlying platform accounts.
+  \item \textbf{Behavioral indicators}: qualitative requirements on social graph structure and behavioral consistency.
+\end{itemize}
+
+\subsubsection{Tier Selection Guidelines}
+
+RPs should select tiers based on the consequences of identity fraud in their context:
+
+\begin{description}
+  \item[Tier 1] is appropriate when the cost of a Sybil attack is low and the primary goal is to filter out trivially automated accounts. False negatives (admitting some fake identities) are acceptable.
+  \item[Tier 2] suits applications where user-generated content or limited resources are at stake, but the system can tolerate occasional bad actors and rely on additional moderation.
+  \item[Tier 3] is designed for governance and resource allocation systems where each identity's vote or claim has material impact. False positives (rejecting legitimate users) should be minimized but are less harmful than Sybil infiltration.
+  \item[Tier 4] is reserved for critical decisions where even a single forged identity could cause significant harm. This tier may exclude new users or those with limited digital presence; such exclusion should be mitigated by offering alternative verification paths (e.g., in-person ceremonies, guardian attestations).
+\end{description}
+
+\subsubsection{Interoperability and Customization}
+
+Assurance Tiers are intended as a shared vocabulary, not a rigid mandate. RPs may:
+\begin{itemize}
+  \item reference a tier by identifier (e.g., ``require SEL-DID Tier 3'') in authentication policies;
+  \item adjust individual thresholds (e.g., raise $C(t)$ for Tier 2 to 0.5 in a high-risk domain);
+  \item combine tier requirements with additional factors (e.g., Tier 3 plus a financial stake or guardian signature);
+  \item define application-specific ``Tier 2.5'' policies that interpolate between standard tiers.
+\end{itemize}
+
+Standardization bodies may publish versioned tier definitions as part of the broader SEL-DID specification, enabling credential wallets and verification libraries to implement tier checks out of the box.
+
 \subsection{Limitations}
 \label{sec:limitations}
 
