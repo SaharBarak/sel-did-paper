@@ -381,6 +381,20 @@ We require $h$ to be monotone with respect to the addition of high-entropy evide
 
 The continuity function $C(t)$ can be used by relying parties to set policies such as: ``accept passwordless login only if $C(t) > \tau$ for some threshold $\tau$,'' or ``allow recovery flows only if $C(t)$ has remained above $\tau$ for at least T months.''
 
+\subsubsection{Social Continuity Decay}
+
+To counter the ``Market for Lemons'' problem---whereby adversaries purchase aged but dormant accounts to inherit their apparent longevity---we require $C(t)$ to incorporate an explicit decay term that penalizes extended periods of inactivity. Concretely, let $t_{\text{last}}$ denote the timestamp of the most recent verifiable behavioral event (e.g., fresh credential issuance, active platform interaction). We define:
+\[
+  C(t) = h\big(\mathcal{E}(t)\big) \cdot D(t - t_{\text{last}}),
+\]
+where $D(\delta)$ is a monotonically decreasing decay function with $D(0) = 1$ and $\lim_{\delta \to \infty} D(\delta) = 0$. A natural choice is exponential decay:
+\[
+  D(\delta) = e^{-\lambda \delta},
+\]
+where $\lambda > 0$ is a decay rate parameter (e.g., $\lambda = 0.1$ per month). Under this formulation, an account that was created years ago but has been ``parked'' without activity will see its continuity score decay toward zero, regardless of its nominal age. In contrast, a genuinely active human who maintains consistent behavioral traces across platforms will continuously refresh $t_{\text{last}}$, keeping $D(\cdot)$ close to unity.
+
+This decay mechanism directly addresses the economic incentives underlying account markets: purchasing a dormant account with a long history provides no advantage if the buyer cannot also reproduce the seller's ongoing behavioral patterns. The cost of maintaining plausible activity across multiple platforms over extended periods---responding to messages, generating organic content, sustaining social ties---remains fundamentally difficult to scale, making ``parked'' bot accounts substantially less valuable than accounts backed by active human behavior.
+
 \subsection{Adversary Cost Model (Informal)}
 
 We informally model the cost for $A_{\text{sybil}}$ to produce $n$ SEL-DIDs whose SEVs pass a given policy $\Pi$ as
