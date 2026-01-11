@@ -590,7 +590,7 @@ We aim to enable a user who has lost access to the private key $sk$ associated w
 
 \begin{itemize}
   \item either bind a new keypair $(sk', pk')$ to the same DID (if the DID method supports key rotation under sufficient proof), or
-  \item create a new DID $\mathsf{did}'$ and migrate their SEL layers in a way that relying parties can recognize as continuity of the same human.
+  \item create a new DID $\mathsf{did}'$\ and migrate their SEL layers in a way that relying parties can recognize as continuity of the same human.
 \end{itemize}
 
 At the same time, an attacker who has temporarily compromised some subset of the user's Web2 accounts should not be able to unilaterally perform such a recovery.
@@ -618,12 +618,12 @@ A generic recovery flow might proceed as follows:
   \begin{itemize}
     \item a proof that $\mathcal{E}'$ and $\mathcal{C}'$ are consistent with the historical SEV associated with the original SEL-DID (e.g., via overlapping account identifiers, long account ages, or ZK proofs of feature stability),
     \item proofs of control over additional recovery factors (guardians, hardware tokens, etc.),
-    \item a binding statement that declares $\mathsf{did}'$ as the successor to the original $\mathsf{did}$.
+    \item a binding statement that declares $\mathsf{did}'$\ as the successor to the original $\mathsf{did}$.
   \end{itemize}
   \item After a policy-defined delay and verification process, RPs can choose to:
   \begin{itemize}
-    \item update their internal records to treat $\mathsf{did}'$ as equivalent to the original $\mathsf{did}$, or
-    \item accept logins from $\mathsf{did}'$ only if accompanied by stronger SEL proofs for a period of time.
+    \item update their internal records to treat $\mathsf{did}'$\ as equivalent to the original $\mathsf{did}$, or
+    \item accept logins from $\mathsf{did}'$\ only if accompanied by stronger SEL proofs for a period of time.
   \end{itemize}
 \end{enumerate}
 
