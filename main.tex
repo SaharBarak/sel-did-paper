@@ -2,6 +2,7 @@
 
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsfonts}
+\newcommand{\bigparallel}{\mathop{\|}}
 \usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage{enumitem}
@@ -281,9 +282,9 @@ We define the \emph{raw feature vector} for platform $p$ as
 
 The global raw feature vector is then
 \[
-  \mathbf{x} = \bigoplus_{p \in \mathcal{P}} \mathbf{x}_p,
+  \mathbf{X} = \bigparallel_{p \in \mathcal{P}} \mathbf{x}_p,
 \]
-where $\oplus$ denotes concatenation.
+where $\parallel$ denotes concatenation.
 
 We define the \emph{Social Entropy Vector} (SEV) as a derived representation
 \[
@@ -493,7 +494,7 @@ Periodically, or on demand, the holder's SEL agent computes the SEV $\mathcal{E}
 
 Let $\mathbf{y}_p$ denote the reduced feature vector in credential $c_p$. The agent computes:
 \[
-  \mathbf{y} = \bigoplus_{p \in \mathcal{P}'} \mathbf{y}_p,
+  \mathbf{y} = \bigparallel_{p \in \mathcal{P}'} \mathbf{y}_p,
 \]
 where $\mathcal{P}' \subseteq \mathcal{P}$ is the subset of platforms for which valid credentials are present.
 
