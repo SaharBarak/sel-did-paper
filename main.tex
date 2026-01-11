@@ -239,13 +239,13 @@ We now formalize the notion of a Social Entropy Layered DID. At a high level, a 
 
 Let $\mathsf{DID}$ denote the set of all decentralized identifiers in a given method (e.g., \texttt{did:key}, \texttt{did:ion}). A traditional DID-based identity $I$ can be modeled as:
 \[
-  I = (\mathsf{did}, sk, pk, \mathsf{DD}),
+  I = (\mathsf{did}, \mathsf{sk}, \mathsf{pk}, \mathsf{DD}),
 \]
-where $\mathsf{did} \in \mathsf{DID}$, $(sk, pk)$ is a signing keypair, and $\mathsf{DD}$ is the corresponding DID document.
+where $\mathsf{did} \in \mathsf{DID}$, $(\mathsf{sk}, \mathsf{pk})$ is a signing keypair, and $\mathsf{DD}$ is the corresponding DID document.
 
 In a SEL-DID system, we extend $I$ to
 \[
-  I_{\text{SEL}} = (\mathsf{did}, sk, pk, \mathsf{DD}, \mathcal{C}, \mathcal{E}),
+  I_{\text{SEL}} = (\mathsf{did}, \mathsf{sk}, \mathsf{pk}, \mathsf{DD}, \mathcal{C}, \mathcal{E}),
 \]
 where:
 \begin{itemize}
@@ -441,7 +441,7 @@ Figure~\ref{fig:architecture} illustrates the high-level architecture.
 \node[cloud] (platforms) {Web2 Platforms\\+ PoP Systems};
 \node[box, right=of platforms] (vault) {Data Vault\\(DWN)};
 \node[smallbox, below=0.5cm of vault] (creds) {$\mathcal{C}$: SEV\\Credentials};
-\node[box, above=of vault] (did) {DID + Keys\\$(sk, pk)$};
+\node[box, above=of vault] (did) {DID + Keys\\$(\mathsf{sk}, \mathsf{pk})$};
 \node[box, right=of vault] (prover) {SEV Derivation\\+ ZK Prover};
 \node[box, right=of prover] (rp) {Relying\\Party};
 
@@ -531,7 +531,7 @@ We assume that $\Pi$ can be encoded as a predicate over $(\mathcal{E}, \mathcal{
 
 \subsubsection{Authentication Flow}
 
-Let $\mathsf{did}$ be the holder's SEL-DID, and let $(sk, pk)$ be the corresponding keypair.
+Let $\mathsf{did}$ be the holder's SEL-DID, and let $(\mathsf{sk}, \mathsf{pk})$ be the corresponding keypair.
 
 The authentication protocol proceeds as follows:
 
@@ -548,7 +548,7 @@ The authentication protocol proceeds as follows:
     \item checks locally whether $\Pi(\mathcal{E}(t), \mathcal{C})$ holds; if not, it can either abort or inform the user that the RP's policy cannot be met;
     \item constructs a ZK proof $\pi$ attesting that there exists $(\mathcal{E}, \mathcal{C})$ consistent with the committed SEV and credentials such that $\Pi(\mathcal{E}, \mathcal{C}) = 1$.
   \end{enumerate}
-  \item \textbf{DID Auth.} In parallel or sequentially, the agent computes a signature $\sigma = \textsf{Sign}_{sk}(n \,\|\, \textsf{ctx})$, where $\textsf{ctx}$ binds the signature to this RP and session (e.g., includes the RP's domain and a timestamp).
+  \item \textbf{DID Auth.} In parallel or sequentially, the agent computes a signature $\sigma = \textsf{Sign}_{\mathsf{sk}}(n \,\|\, \textsf{ctx})$, where $\textsf{ctx}$ binds the signature to this RP and session (e.g., includes the RP's domain and a timestamp).
   \item \textbf{Submission.} The holder sends to the RP:
   \[
     (\mathsf{did}, \sigma, \pi, \textsf{aux}),
@@ -556,8 +556,8 @@ The authentication protocol proceeds as follows:
   where $\textsf{aux}$ may include non-sensitive metadata such as the chosen SEL policy identifier and any public parameters needed to verify $\pi$.
   \item \textbf{Verification.} The RP:
   \begin{enumerate}
-    \item resolves $\mathsf{did}$ to obtain the associated DID document $\mathsf{DD}$ and public key $pk$;
-    \item verifies the signature $\sigma$ against $pk$ and challenge $n$;
+    \item resolves $\mathsf{did}$ to obtain the associated DID document $\mathsf{DD}$ and public key $\mathsf{pk}$;
+    \item verifies the signature $\sigma$ against $\mathsf{pk}$ and challenge $n$;
     \item verifies the ZK proof $\pi$ against the policy $\Pi$ and the RP's verification parameters.
   \end{enumerate}
   If all checks pass, the RP accepts the authentication and establishes a session associated with $\mathsf{did}$ and the policy level used.
@@ -586,10 +586,10 @@ We sketch a high-level recovery pattern; full formalization is left for future w
 
 \subsubsection{Recovery Goals}
 
-We aim to enable a user who has lost access to the private key $sk$ associated with $\mathsf{did}$ to:
+We aim to enable a user who has lost access to the private key $\mathsf{sk}$ associated with $\mathsf{did}$ to:
 
 \begin{itemize}
-  \item either bind a new keypair $(sk', pk')$ to the same DID (if the DID method supports key rotation under sufficient proof), or
+  \item either bind a new keypair $(\mathsf{sk}', \mathsf{pk}')$ to the same DID (if the DID method supports key rotation under sufficient proof), or
   \item create a new DID $\mathsf{did}'$ and migrate their SEL layers in a way that relying parties can recognize as continuity of the same human.
 \end{itemize}
 
@@ -612,7 +612,7 @@ These factors raise the bar for an attacker who has compromised only a small sub
 A generic recovery flow might proceed as follows:
 
 \begin{enumerate}
-  \item The user installs a new SEL agent and generates a fresh keypair $(sk', pk')$ and, if necessary, a new DID $\mathsf{did}'$.
+  \item The user installs a new SEL agent and generates a fresh keypair $(\mathsf{sk}', \mathsf{pk}')$ and, if necessary, a new DID $\mathsf{did}'$.
   \item The agent re-establishes control over as many of the user's platforms as possible and obtains fresh credentials $\mathcal{C}'$ from them, constructing a new SEV $\mathcal{E}'$ and continuity score $C'(t)$.
   \item The agent initiates a recovery request to a recovery service or directly to relying parties, including:
   \begin{itemize}
