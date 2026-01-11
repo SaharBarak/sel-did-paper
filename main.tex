@@ -487,6 +487,62 @@ An issuance interaction proceeds as follows:
 
 Credentials may have limited validity periods (e.g., 30--90 days), after which they must be refreshed. Revocation can be handled via standard VC revocation mechanisms (status lists, accumulators) or by short-lived credentials whose absence over time is treated as a signal of decay.
 
+\subsubsection{User-Generated Proofs via ZK-TLS}
+\label{sec:zk_tls}
+
+The credential issuance model described above assumes that Web2 platforms are willing to act as SEV issuers---computing feature vectors and signing verifiable credentials on behalf of users. In practice, this assumption faces a significant obstacle: the \emph{Platform Issuer Bottleneck}. Most large platforms have little incentive to issue credentials that strengthen identities outside their ecosystems, and many actively restrict API access to protect their data assets.
+
+ZK-TLS protocols, such as TLSNotary and DECO, offer a promising alternative that removes the dependency on platform cooperation entirely.\cite{tlsnotary,deco} These protocols allow a user to generate cryptographic proofs about data received during a standard TLS session with any web server, without requiring the server to be aware of or participate in the proof generation.
+
+\paragraph{How ZK-TLS works.} In a typical ZK-TLS flow:
+
+\begin{enumerate}
+  \item The user establishes a standard TLS connection to a Web2 platform (e.g., their social network profile page, account settings, or activity dashboard).
+  \item A notary or multi-party computation (MPC) protocol participates in the TLS handshake in a way that allows the session transcript to be selectively revealed later, while preserving the authenticity guarantees of TLS.
+  \item After the session, the user can generate a proof that specific data appeared in the authenticated server response---for example, that their account was created before a certain date, that they have more than $N$ followers, or that their username matches a particular pattern.
+  \item Crucially, the user can redact sensitive portions of the response before generating the proof, revealing only the minimal information needed for the claim.
+\end{enumerate}
+
+\paragraph{Integrating ZK-TLS into SEL-DIDs.} ZK-TLS enables a new class of SEV credential that we call \emph{user-generated platform attestations}. Instead of waiting for a platform to issue a VC, the user's SEL agent can:
+
+\begin{enumerate}
+  \item Navigate to relevant pages on Web2 platforms (e.g., account creation date, follower counts, activity summaries) using a ZK-TLS-enabled client.
+  \item Capture authenticated responses and generate selective disclosure proofs for the specific features needed by the SEV schema $\mathsf{Schema}_p$.
+  \item Package the proof into a verifiable credential of the form:
+  \[
+    c_{p}^{\text{ZK-TLS}} = \big( \mathsf{id}_p, \mathsf{did}, \mathbf{y}_p, \pi_{\text{TLS}}, \textsf{meta}_p \big),
+  \]
+  where $\pi_{\text{TLS}}$ is the ZK-TLS proof attesting that $\mathbf{y}_p$ was derived from an authentic TLS session with platform $p$, and the credential is self-signed by the user's DID (since the authenticity derives from $\pi_{\text{TLS}}$ rather than from a platform signature).
+\end{enumerate}
+
+\paragraph{Benefits of user-generated proofs.}
+
+\begin{itemize}
+  \item \textbf{Platform-agnostic.} ZK-TLS works with any platform that serves data over HTTPS, without requiring API access or platform cooperation. This directly addresses design goal G3 (platform-agnostic continuity).
+  \item \textbf{User-controlled timing.} Users can generate proofs at any time, not just when platforms choose to issue credentials. This improves responsiveness and reduces dependence on platform availability.
+  \item \textbf{Selective disclosure by construction.} Because the user controls which portions of the TLS response are revealed in the proof, privacy is built into the issuance process rather than added as a layer on top.
+  \item \textbf{Resistance to platform censorship.} A platform cannot selectively refuse to issue credentials to targeted users, since the user generates the proof unilaterally from public-facing data.
+\end{itemize}
+
+\paragraph{Limitations and considerations.}
+
+\begin{itemize}
+  \item \textbf{Notary trust.} Some ZK-TLS protocols (e.g., early TLSNotary) require a semi-trusted notary that participates in the session. More recent approaches use multi-party computation to distribute trust across multiple notaries, or leverage TEEs (trusted execution environments) to minimize trust assumptions.
+  \item \textbf{Proof complexity.} Generating ZK proofs over TLS transcripts can be computationally expensive. Practical deployments may need to balance proof granularity against generation time and proof size.
+  \item \textbf{Data freshness.} Unlike platform-issued credentials that can be updated server-side, ZK-TLS proofs reflect data at a specific point in time. The SEL agent must periodically regenerate proofs to maintain fresh SEV credentials.
+  \item \textbf{Anti-scraping measures.} Platforms may deploy CAPTCHAs, rate limiting, or dynamic content that complicates automated ZK-TLS proof generation. However, since users are proving facts about their own accounts while logged in, many such measures are less restrictive than for anonymous scraping.
+\end{itemize}
+
+\paragraph{Hybrid issuance model.} In practice, SEL-DID deployments will likely use a hybrid model:
+
+\begin{itemize}
+  \item Where platforms actively participate as SEV issuers (e.g., through data portability APIs or explicit VC issuance services), users obtain platform-signed credentials as described in Section~\ref{sec:construction}.
+  \item Where platforms do not cooperate, users fall back to ZK-TLS-based user-generated proofs.
+  \item The SEV aggregation logic treats both credential types equivalently, weighting them by the strength of the underlying attestation (platform signature vs.\ ZK-TLS proof with specified notary trust model).
+\end{itemize}
+
+This hybrid approach ensures that SEL-DIDs remain functional even in a world where most platforms never become active credential issuers, while still benefiting from direct platform attestations when available.
+
 \subsubsection{Local SEV Aggregation}
 
 Periodically, or on demand, the holder's SEL agent computes the SEV $\mathcal{E}$ from the set of currently valid credentials $\mathcal{C} = \{c_p\}$.
