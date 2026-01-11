@@ -739,7 +739,12 @@ The system employs a four-layer verification model:
 \begin{enumerate}
   \item \textbf{Basic authentication.} Users register via email, phone, or social login, establishing a persistent account anchor.
   \item \textbf{Social signature.} The platform aggregates signals from connected social accounts (e.g., activity history, account ages, cross-platform consistency) into a reputation score analogous to the SEV described in Section~\ref{sec:model}. This raises the cost of operating multiple fake accounts.
-  \item \textbf{Financial stake.} Each vote requires a small payment (e.g., \$1 equivalent), processed through a regulated payment provider that implicitly confirms possession of a local bank account. This introduces economic friction without requiring explicit KYC documents.
+  \item \textbf{Financial stake OR high-entropy peer vouching.} Each vote requires \emph{either}:
+  \begin{itemize}
+    \item a small payment (e.g., \$1 equivalent), processed through a regulated payment provider that implicitly confirms possession of a local bank account, \emph{or}
+    \item a cryptographic attestation (vouch) from a peer whose SEL-DID already exceeds a high-entropy threshold $\tau_{\text{vouch}}$ (e.g., $C(t) \geq 0.8$, multi-year presence on $\geq 3$ platforms).
+  \end{itemize}
+  The first option introduces economic friction without explicit KYC; the second provides an inclusion path for unbanked individuals while preserving Sybil resistance. Vouching is rate-limited: each high-entropy peer may vouch for at most $k$ new users per epoch (e.g., $k = 2$ per month), and a vouched user inherits a reduced initial standing until they independently accumulate sufficient entropy. This ensures that attackers cannot scale vouching without first building many expensive high-entropy identities.
   \item \textbf{Geographic verification.} At vote time, the user's device provides GPS coordinates, which are checked against municipality boundaries. The location is recorded on-chain alongside the vote hash, proving physical presence without revealing the user's home address.
 \end{enumerate}
 
@@ -748,10 +753,11 @@ All votes are recorded on a public blockchain, enabling auditability while prese
 This design achieves several SEL-DID goals:
 
 \begin{itemize}
-  \item \textbf{Sybil resistance without biometrics.} An attacker wishing to cast $n$ fake votes must maintain $n$ aged social accounts, control $n$ local bank accounts, physically travel to the municipality $n$ times, and pay the per-vote fee $n$ times. For modest $n$, this is already expensive; for large $n$, it is prohibitive.
+  \item \textbf{Sybil resistance without biometrics.} An attacker wishing to cast $n$ fake votes must maintain $n$ aged social accounts, physically travel to the municipality $n$ times, and \emph{either} control $n$ local bank accounts and pay the per-vote fee $n$ times, \emph{or} cultivate enough high-entropy identities to vouch for $n$ accomplices (subject to rate limits). For modest $n$, this is already expensive; for large $n$, it is prohibitive.
   \item \textbf{No centralized identity oracle.} The system does not depend on a global uniqueness registry or a single issuer. Each verification layer is independent; failure or compromise of one layer degrades assurance but does not break the system.
   \item \textbf{Location-specific proof.} Unlike global proof-of-personhood schemes, the user only proves residency in a specific municipality, not worldwide uniqueness. This is sufficient for local governance and avoids the political and technical challenges of global identity.
   \item \textbf{Privacy-preserving.} The relying party (the voting platform) learns that a user satisfies the multi-layer policy, but does not see raw social graphs, financial balances, or precise home locations.
+  \item \textbf{Inclusive by design.} The high-entropy peer vouching alternative ensures that unbanked individuals---who may lack access to regulated payment providers---are not excluded from civic participation. By allowing trusted community members to vouch for newcomers (subject to rate limits and entropy thresholds), the system preserves accessibility without compromising Sybil resistance.
 \end{itemize}
 
 This case study demonstrates that SEL-DIDs can be deployed incrementally, using existing infrastructure (social logins, payment processors, GPS), without waiting for new cryptographic ceremonies or biometric hardware. The approach is particularly suited to applications where geographic locality and moderate assurance are more relevant than global uniqueness guarantees.
