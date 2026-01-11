@@ -291,6 +291,12 @@ We define the \emph{Social Entropy Vector} (SEV) as a derived representation
 \]
 where $g$ is a transformation that may include normalization, dimensionality reduction (e.g., via PCA or learned embeddings), clipping to preserve privacy, and quantization to reduce linkability. In the simplest case, $g$ is the identity and $\mathcal{E}$ is just the normalized feature vector; in more sophisticated constructions, $g$ can be designed to expose only coarse-grained information relevant to Sybil resistance.
 
+\paragraph{Terminology clarification.} The term ``entropy'' in SEV refers to \emph{behavioral unpredictability}---the statistical complexity that organic human activity accumulates over time---rather than a single information-theoretic entropy value. The SEV is a \emph{feature vector}, not a scalar. However, several components of $\mathbf{x}_p$ are themselves computed using Shannon entropy. For a discrete behavioral distribution $P = (p_1, \ldots, p_m)$ (e.g., posting times bucketed by hour, or content categories), we define
+\[
+  H(P) = -\sum_{i=1}^{m} p_i \log_2 p_i,
+\]
+where $0 \log 0 \triangleq 0$. Features such as ``posting regularity'' and ``diversity entropy'' in Table~\ref{tab:features} are instantiations of $H(P)$ over appropriate behavioral distributions. This formulation ensures that accounts with highly predictable (low-entropy) or highly erratic (potentially scripted) behavior score differently from accounts exhibiting the moderate, organic variability typical of genuine users.
+
 We say that a SEV $\mathcal{E}$ has \emph{high social entropy} if it exhibits statistical properties that are difficult to reproduce cheaply at scale---for example, long account ages, dense and organic social graphs, consistent behavioral rhythms, and diverse but coherent content interaction histories across platforms. We deliberately do not fix a single scalar ``entropy score''; instead, we allow application-specific risk models to interpret $\mathcal{E}$.
 
 \subsection{Example Feature Space}
