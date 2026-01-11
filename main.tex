@@ -737,6 +737,61 @@ While no technical design alone can prevent such misuse, SEL-DIDs can be structu
 
 Ultimately, ethical deployment of SEL-DIDs will require not only technical safeguards but also governance, regulation, and informed public debate.
 
+\subsection{Revocation and Privacy: The Nuclear Option}
+
+A fundamental tension exists between the SEL-DID goal of building long-term behavioral continuity and the user's right to be forgotten. In some scenarios---duress, stalking, escape from abusive relationships, political persecution, or simply a desire to start fresh---a user may need to sever the link between their DID and their accumulated behavioral history entirely. We call this the ``Nuclear Option.''
+
+\subsubsection{The Right to Sever}
+
+Unlike traditional account deletion, where a central authority removes records, decentralized identity complicates forgetting: credentials may be cached by relying parties, zero-knowledge proofs may have been recorded, and the SEV itself may have left traces in on-chain or off-chain systems. SEL-DIDs must therefore provide a principled mechanism for users to abandon an identity without being traceably linked to a successor.
+
+The Nuclear Option proceeds as follows:
+
+\begin{enumerate}
+  \item \textbf{Key rotation to a fresh DID.} The user generates an entirely new keypair $(sk', pk')$ and a new DID $\mathsf{did}'$ with no cryptographic or on-chain linkage to the original $\mathsf{did}$.
+  \item \textbf{Credential non-transfer.} Critically, the user does \emph{not} migrate or re-issue SEV credentials from $\mathcal{C}$ to the new DID. The old credentials remain bound to the old $\mathsf{did}$ and are effectively orphaned.
+  \item \textbf{Revocation of old credentials.} Where supported, the user issues revocation statements for all credentials in $\mathcal{C}$, signaling to relying parties that the old SEL-DID should no longer be trusted. This is optional but recommended to prevent the old identity from being hijacked.
+  \item \textbf{Platform-level disconnection.} Where possible, the user unlinks or deletes platform accounts that contributed to the old SEV. This is outside the SEL-DID protocol proper but is part of a comprehensive right-to-be-forgotten exercise.
+  \item \textbf{Cold start on the new identity.} The user begins accumulating SEV evidence from scratch on $\mathsf{did}'$, accepting the cold-start penalty as the cost of privacy.
+\end{enumerate}
+
+\subsubsection{Design Constraints for Unlinkability}
+
+For the Nuclear Option to be meaningful, the system must ensure that:
+
+\begin{itemize}
+  \item \textbf{No mandatory linkage.} Recovery and migration flows must be opt-in. A user who chooses \emph{not} to prove continuity between $\mathsf{did}$ and $\mathsf{did}'$ should face no automatic penalties beyond the cold-start cost.
+  \item \textbf{No global identity registry.} SEL-DIDs must not depend on a central database that tracks all DIDs and could be queried to find successors. Each DID is independently generated and self-certifying.
+  \item \textbf{Minimal metadata leakage.} Credential schemas and ZK proofs should be designed so that repeated use of the same platforms on a new DID does not create trivially linkable fingerprints. For example, if a user's old and new SEVs both include credentials from the same three platforms with similar account ages, this should not be directly observable by relying parties.
+  \item \textbf{Time-bounded caching.} Relying parties should be encouraged (or required by policy) to expire cached SEV proofs and not retain indefinite records of which DIDs satisfied which policies.
+\end{itemize}
+
+\subsubsection{Trade-offs and Limitations}
+
+The Nuclear Option is not free. A user who exercises it:
+
+\begin{itemize}
+  \item loses all accumulated SEV-based reputation and must rebuild from zero;
+  \item may be unable to access services that require high-entropy SEVs until sufficient time has passed;
+  \item cannot prove continuity to relying parties who might otherwise offer preferential treatment to long-standing identities.
+\end{itemize}
+
+These costs are intentional: they are the same costs that make Sybil attacks expensive. The difference is that the legitimate user is making a deliberate, informed choice to pay this cost in exchange for privacy, rather than being forced into it by an adversary.
+
+In extreme cases---such as fleeing domestic abuse or political persecution---the cold-start penalty may itself be a barrier to safety. Future work should explore mechanisms for privacy-preserving ``fresh start'' attestations that can be issued by trusted third parties (e.g., shelters, human rights organizations) to bootstrap a new SEL-DID without revealing linkage to the old one, while still providing some Sybil resistance.
+
+\subsubsection{Relation to GDPR and Data Protection}
+
+The Nuclear Option aligns with the ``right to erasure'' (Article 17) under GDPR and similar data protection regimes. However, SEL-DIDs add complexity because:
+
+\begin{itemize}
+  \item credentials are held in user-controlled vaults, so ``deletion'' is largely under user control;
+  \item relying parties may have cached proofs or policy decisions that persist beyond credential revocation;
+  \item on-chain records (if any) may be immutable by design.
+\end{itemize}
+
+Deployments should clearly document which data is stored where, under whose control, and what deletion or revocation mechanisms are available. Where on-chain records are used, designs should prefer commitments and hashes over plaintext, and should support revocation lists or expiration semantics that allow old records to become meaningless over time.
+
 \subsection{Governance and Standardization}
 
 Because SEL-DIDs build directly on DID and VC standards, they are natural candidates for discussion in the same standardization forums. Key open questions include:
